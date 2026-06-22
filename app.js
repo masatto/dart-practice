@@ -41,7 +41,65 @@ const Storage = (() => {
     return getAll().find(r => r.id === id) || null;
   }
 
-  return { getAll, add, update, remove, getById };
+  // 同一日付の重複レコードを1件にマージして保存する。マージが発生した場合 true を返す
+  function deduplicate() {
+    const records = getAll();
+    const byDate = {};
+    records.forEach(r => {
+      if (!byDate[r.date]) byDate[r.date] = [];
+      byDate[r.date].push(r);
+    });
+
+    let changed = false;
+    const result = [];
+
+    Object.keys(byDate).sort().reverse().forEach(date => {
+      const recs = byDate[date];
+      if (recs.length === 1) { result.push(recs[0]); return; }
+
+      changed = true;
+
+      // COUNT-UP: 全ゲームを結合
+      const allCuGames = recs.flatMap(r => r.countUp?.games || []);
+
+      // 01: 全ゲームを結合
+      const allZo = recs.flatMap(r => r.zeroOne || []);
+
+      // クリケット: 各ナンバーの最後に記録された値を採用
+      const cpList = recs.map(r => r.cricketPractice).filter(Boolean);
+      let mergedCp = null;
+      if (cpList.length) {
+        mergedCp = {};
+        CRICKET_NUMS.forEach(n => {
+          const vals = cpList.map(cp => cp[n]).filter(v => v != null);
+          if (vals.length) mergedCp[n] = vals[vals.length - 1];
+        });
+        if (!Object.keys(mergedCp).length) mergedCp = null;
+      }
+
+      // 練習時間: 合算
+      const totalMin = recs.reduce((s, r) => s + (Number(r.practiceMinutes) || 0), 0);
+
+      // メモ: 空でないものを結合
+      const memos = recs.map(r => r.memo).filter(Boolean);
+
+      const merged = {
+        ...recs[0],
+        countUp:         allCuGames.length ? { games: allCuGames } : null,
+        zeroOne:         allZo.length ? allZo : null,
+        cricketPractice: mergedCp,
+        practiceMinutes: totalMin,
+        memo:            memos.join(' / '),
+        updatedAt:       new Date().toISOString(),
+      };
+      result.push(merged);
+    });
+
+    if (changed) saveAll(result);
+    return changed;
+  }
+
+  return { getAll, add, update, remove, getById, deduplicate };
 })();
 
 /* ============================================================
@@ -1093,6 +1151,11 @@ function changeMonth(delta) {
    INIT
    ============================================================ */
 function init() {
+  // 起動時: 同一日付の重複レコードをマージ
+  if (Storage.deduplicate()) {
+    showToast('同じ日付の記録をまとめました');
+  }
+
   // Nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
