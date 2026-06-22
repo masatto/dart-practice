@@ -268,11 +268,24 @@ const State = {
   rankPeriod:   '30',
   monthlyYM:    Utils.currentYM(),
   prevBests:    null,
+  submitting:   false,
 };
 
 /* ============================================================
    NAVIGATION
    ============================================================ */
+
+// 記録画面へ遷移する。当日の記録が既にある場合は編集モードへ誘導する
+function goToRecord() {
+  const existing = Storage.getAll().find(r => r.date === Utils.today());
+  if (existing) {
+    showToast('本日の記録があります。編集モードで開きます');
+    navigate('record', { editId: existing.id });
+  } else {
+    navigate('record');
+  }
+}
+
 function navigate(screen, opts = {}) {
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -405,7 +418,7 @@ function renderHome() {
     <div class="card">${renderHomeReport(records, ym)}</div>
   `;
 
-  document.getElementById('btn-today').addEventListener('click', () => navigate('record'));
+  document.getElementById('btn-today').addEventListener('click', () => goToRecord());
 }
 
 function renderHomeReport(records, ym) {
@@ -664,6 +677,7 @@ function renumberRows(containerId) {
    ============================================================ */
 function handleFormSubmit(e) {
   e.preventDefault();
+  if (State.submitting) return;
 
   const date = document.getElementById('f-date').value;
   if (!date) { showToast('練習日を入力してください', 'error'); return; }
@@ -679,6 +693,7 @@ function handleFormSubmit(e) {
     return;
   }
 
+  State.submitting = true;
   const now = new Date().toISOString();
 
   // Snapshot bests before save
@@ -712,7 +727,8 @@ function handleFormSubmit(e) {
     setTimeout(() => showCelebration(pbs), 600);
   }
 
-  State.editId = null;
+  State.editId    = null;
+  State.submitting = false;
   navigate('home');
 }
 
@@ -1079,7 +1095,15 @@ function changeMonth(delta) {
 function init() {
   // Nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => navigate(btn.dataset.screen));
+    btn.addEventListener('click', () => {
+      const screen = btn.dataset.screen;
+      // 記録タブは当日重複チェックを挟む
+      if (screen === 'record') {
+        goToRecord();
+      } else {
+        navigate(screen);
+      }
+    });
   });
 
   // Record back button
