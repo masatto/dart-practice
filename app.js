@@ -1,6 +1,20 @@
 'use strict';
 
 /* ============================================================
+   FIREBASE CONFIG
+   Firebase Console (console.firebase.google.com) で
+   プロジェクト設定 > マイアプリ から取得した値を貼り付けてください
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey:            '',
+  authDomain:        '',
+  projectId:         '',
+  storageBucket:     '',
+  messagingSenderId: '',
+  appId:             '',
+};
+
+/* ============================================================
    STORAGE
    ============================================================ */
 const Storage = (() => {
@@ -91,7 +105,101 @@ const Storage = (() => {
     return changed;
   }
 
-  return { getAll, add, update, remove, getById, deduplicate };
+  return { getAll, saveAll, add, update, remove, getById, deduplicate };
+})();
+
+/* ============================================================
+   CLOUD (Firebase Firestore sync)
+   ============================================================ */
+const Cloud = (() => {
+  let db = null;
+  let auth = null;
+  let ready = false;
+
+  function isConfigured() {
+    return Boolean(FIREBASE_CONFIG.apiKey);
+  }
+
+  function init() {
+    if (!isConfigured()) return;
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      db   = firebase.firestore();
+      auth = firebase.auth();
+      db.enablePersistence().catch(() => {});
+      ready = true;
+    } catch (e) {
+      console.error('Firebase init:', e);
+    }
+  }
+
+  function onAuthChange(cb) {
+    if (!ready) return;
+    auth.onAuthStateChanged(cb);
+  }
+
+  function signIn() {
+    if (!ready) return Promise.reject();
+    return auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  }
+
+  function signOut() {
+    if (!ready) return Promise.reject();
+    return auth.signOut();
+  }
+
+  function getUser() {
+    return ready ? auth.currentUser : null;
+  }
+
+  function col(uid) {
+    return db.collection(`users/${uid}/records`);
+  }
+
+  async function saveRecord(uid, record) {
+    if (!ready || !uid) return;
+    try { await col(uid).doc(record.id).set(record); } catch (e) { console.error('Cloud.save:', e); }
+  }
+
+  async function deleteRecord(uid, id) {
+    if (!ready || !uid) return;
+    try { await col(uid).doc(id).delete(); } catch (e) { console.error('Cloud.delete:', e); }
+  }
+
+  // クラウドとローカルを双方向マージ（updatedAt の新しい方を正とする）
+  async function syncAll(uid) {
+    if (!ready || !uid) return 0;
+    try {
+      const snap = await col(uid).get();
+      const cloudRecords = snap.docs.map(d => d.data());
+      const localRecords = Storage.getAll();
+
+      const merged = {};
+      [...localRecords, ...cloudRecords].forEach(r => {
+        const cur = merged[r.id];
+        if (!cur || new Date(r.updatedAt) > new Date(cur.updatedAt)) merged[r.id] = r;
+      });
+
+      const mergedArr = Object.values(merged).sort((a, b) => b.date.localeCompare(a.date));
+
+      // ローカルにない or より新しいレコードをアップロード
+      const cloudById = Object.fromEntries(cloudRecords.map(r => [r.id, r]));
+      await Promise.all(
+        mergedArr
+          .filter(r => !cloudById[r.id] || new Date(r.updatedAt) > new Date(cloudById[r.id].updatedAt))
+          .map(r => saveRecord(uid, r))
+      );
+
+      const added = mergedArr.length - localRecords.length;
+      Storage.saveAll(mergedArr);
+      return added;
+    } catch (e) {
+      console.error('Cloud.syncAll:', e);
+      return 0;
+    }
+  }
+
+  return { isConfigured, init, onAuthChange, signIn, signOut, getUser, saveRecord, deleteRecord, syncAll };
 })();
 
 /* ============================================================
@@ -803,6 +911,9 @@ function handleFormSubmit(e) {
     Storage.add(record);
   }
 
+  const syncUid = Cloud.getUser()?.uid;
+  if (syncUid) Cloud.saveRecord(syncUid, record);
+
   // Check PBs after save
   const allAfter = Calc.allBests(Storage.getAll());
   const pbs = detectPBs(allBefore, allAfter);
@@ -1181,9 +1292,45 @@ function changeMonth(delta) {
 }
 
 /* ============================================================
+   SYNC BAR
+   ============================================================ */
+function renderSyncBar(user) {
+  const bar  = document.getElementById('sync-bar');
+  const text = document.getElementById('sync-status-text');
+  const btn  = document.getElementById('sync-login-btn');
+  if (!Cloud.isConfigured()) return;
+  bar.classList.remove('hidden');
+  if (user) {
+    text.innerHTML = user.photoURL
+      ? `<img src="${Utils.esc(user.photoURL)}" class="sync-avatar" referrerpolicy="no-referrer"> ${Utils.esc(user.displayName || user.email)}`
+      : Utils.esc(user.displayName || user.email || 'ログイン中');
+    btn.textContent = 'ログアウト';
+    btn.className   = 'sync-btn sync-btn--out';
+    btn.onclick = () => Cloud.signOut().then(() => showToast('ログアウトしました'));
+  } else {
+    text.textContent = 'Googleアカウントで同期';
+    btn.textContent  = 'ログイン';
+    btn.className    = 'sync-btn sync-btn--in';
+    btn.onclick = () => Cloud.signIn().catch(() => showToast('ログインに失敗しました', 'error'));
+  }
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 function init() {
+  // Firebase初期化・認証状態の監視
+  Cloud.init();
+  Cloud.onAuthChange(async user => {
+    renderSyncBar(user);
+    if (user) {
+      const added = await Cloud.syncAll(user.uid);
+      Storage.deduplicate();
+      showToast(added > 0 ? `クラウドから${added}件を取得しました` : '同期完了 ✓');
+      navigate(State.screen);
+    }
+  });
+
   // 起動時: 同一日付の重複レコードをマージ
   if (Storage.deduplicate()) {
     showToast('同じ日付の記録をまとめました');
@@ -1224,7 +1371,10 @@ function init() {
   // Delete confirm
   document.getElementById('confirm-yes').addEventListener('click', () => {
     if (pendingDeleteId) {
-      Storage.remove(pendingDeleteId);
+      const delId = pendingDeleteId;
+      Storage.remove(delId);
+      const delUid = Cloud.getUser()?.uid;
+      if (delUid) Cloud.deleteRecord(delUid, delId);
       closeConfirm();
       closeModal();
       showToast('記録を削除しました');
