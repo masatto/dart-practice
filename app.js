@@ -1174,7 +1174,12 @@ function init() {
     navigate(State.editId ? 'history' : 'home');
   });
 
-  // Form
+  // Form — textarea以外でのEnterキーによる誤送信を防ぐ
+  document.getElementById('practice-form').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+    }
+  });
   document.getElementById('practice-form').addEventListener('submit', handleFormSubmit);
   document.getElementById('add-countup-game').addEventListener('click', () => addCuGame());
   document.getElementById('add-zeroone-game').addEventListener('click', () => addZoGame());
