@@ -6,12 +6,12 @@
    プロジェクト設定 > マイアプリ から取得した値を貼り付けてください
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey:            '',
-  authDomain:        '',
-  projectId:         '',
-  storageBucket:     '',
-  messagingSenderId: '',
-  appId:             '',
+  apiKey:            'AIzaSyAlVzWR8x6YNz-HDog8_Hd8ylnwGXrMwnE',
+  authDomain:        'darts-practice-ae2c8.firebaseapp.com',
+  projectId:         'darts-practice-ae2c8',
+  storageBucket:     'darts-practice-ae2c8.firebasestorage.app',
+  messagingSenderId: '69157967154',
+  appId:             '1:69157967154:web:26be8961f308f2495b732b',
 };
 
 /* ============================================================
