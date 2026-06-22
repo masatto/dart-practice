@@ -628,6 +628,31 @@ body {
 }
 
 /* ============================================================
+   CRICKET ROUNDS
+   ============================================================ */
+.cricket-round {
+  background: var(--bg-secondary);
+  border-radius: var(--r-md);
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+
+.cricket-round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.cricket-round-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+/* ============================================================
    TOTAL SECTION
    ============================================================ */
 .total-section {

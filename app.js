@@ -65,17 +65,9 @@ const Storage = (() => {
       // 01: 全ゲームを結合
       const allZo = recs.flatMap(r => r.zeroOne || []);
 
-      // クリケット: 各ナンバーの最後に記録された値を採用
-      const cpList = recs.map(r => r.cricketPractice).filter(Boolean);
-      let mergedCp = null;
-      if (cpList.length) {
-        mergedCp = {};
-        CRICKET_NUMS.forEach(n => {
-          const vals = cpList.map(cp => cp[n]).filter(v => v != null);
-          if (vals.length) mergedCp[n] = vals[vals.length - 1];
-        });
-        if (!Object.keys(mergedCp).length) mergedCp = null;
-      }
+      // クリケット: 全ラウンドを結合（旧オブジェクト形式も配列に統一）
+      const allRounds = recs.flatMap(r => Calc.cpRounds(r.cricketPractice));
+      const mergedCp = allRounds.length ? allRounds : null;
 
       // 練習時間: 合算
       const totalMin = recs.reduce((s, r) => s + (Number(r.practiceMinutes) || 0), 0);
@@ -205,24 +197,31 @@ const Calc = {
     return (games || []).reduce((s, g) => s + (Number(g.darts) || 0), 0);
   },
 
+  // cricketPractice は配列形式 [{20:18,...}, ...] を想定。旧オブジェクト形式も許容
+  cpRounds(cp) {
+    if (!cp) return [];
+    return Array.isArray(cp) ? cp : [cp];
+  },
+
   cricketDarts(cp) {
-    if (!cp) return 0;
-    return Object.values(cp).reduce((s, v) => s + (Number(v) || 0), 0);
+    return this.cpRounds(cp).reduce((total, round) =>
+      total + Object.values(round).reduce((s, v) => s + (Number(v) || 0), 0), 0);
   },
 
   totalDarts(r) {
     return this.cuDarts(r.countUp?.games) + this.zoDarts(r.zeroOne) + this.cricketDarts(r.cricketPractice);
   },
 
-  // Average throws per number across a set of records
+  // Average throws per number across a set of records (all rounds)
   cricketAverages(records) {
     const sums = {}, counts = {};
     CRICKET_NUMS.forEach(n => { sums[n] = 0; counts[n] = 0; });
     records.forEach(r => {
-      if (!r.cricketPractice) return;
-      CRICKET_NUMS.forEach(n => {
-        const v = Number(r.cricketPractice[n]);
-        if (v > 0) { sums[n] += v; counts[n]++; }
+      this.cpRounds(r.cricketPractice).forEach(round => {
+        CRICKET_NUMS.forEach(n => {
+          const v = Number(round[n]);
+          if (v > 0) { sums[n] += v; counts[n]++; }
+        });
       });
     });
     const out = {};
@@ -232,15 +231,16 @@ const Calc = {
     return out;
   },
 
-  // Best (minimum) throws per number across records
+  // Best (minimum) throws per number across records (all rounds)
   cricketBests(records) {
     const bests = {};
     CRICKET_NUMS.forEach(n => { bests[n] = null; });
     records.forEach(r => {
-      if (!r.cricketPractice) return;
-      CRICKET_NUMS.forEach(n => {
-        const v = Number(r.cricketPractice[n]);
-        if (v > 0 && (bests[n] === null || v < bests[n])) bests[n] = v;
+      this.cpRounds(r.cricketPractice).forEach(round => {
+        CRICKET_NUMS.forEach(n => {
+          const v = Number(round[n]);
+          if (v > 0 && (bests[n] === null || v < bests[n])) bests[n] = v;
+        });
       });
     });
     return bests;
@@ -321,12 +321,13 @@ const Calc = {
    APP STATE
    ============================================================ */
 const State = {
-  screen:       'home',
-  editId:       null,
-  rankPeriod:   '30',
-  monthlyYM:    Utils.currentYM(),
-  prevBests:    null,
-  submitting:   false,
+  screen:        'home',
+  editId:        null,
+  rankPeriod:    '30',
+  monthlyYM:     Utils.currentYM(),
+  prevBests:     null,
+  submitting:    false,
+  cricketRounds: [],
 };
 
 /* ============================================================
@@ -514,20 +515,17 @@ function renderHomeReport(records, ym) {
    ============================================================ */
 function initRecordForm(editId) {
   State.editId = editId;
+  State.cricketRounds = [];
 
   document.getElementById('record-title').textContent = editId ? '練習記録を編集' : '練習を記録する';
   document.getElementById('f-date').value = Utils.today();
   document.getElementById('f-minutes').value = '';
   document.getElementById('f-memo').value = '';
 
-  // Clear game rows
   document.getElementById('countup-games').innerHTML = '';
   document.getElementById('zeroone-games').innerHTML = '';
+  document.getElementById('cricket-rounds').innerHTML = '';
 
-  // Render cricket inputs
-  buildCricketInputs();
-
-  // Reset calcs
   updateCuCalc();
   updateZoCalc();
   updateCricketCalc();
@@ -543,11 +541,8 @@ function initRecordForm(editId) {
       (r.countUp?.games || []).forEach(g => addCuGame(g.score));
       (r.zeroOne || []).forEach(g => addZoGame(g.type, g.average, g.darts));
 
-      const cp = r.cricketPractice || {};
-      CRICKET_NUMS.forEach(n => {
-        const inp = document.getElementById(`ci-${n}`);
-        if (inp && cp[n]) inp.value = cp[n];
-      });
+      // 旧オブジェクト形式・新配列形式どちらも対応
+      Calc.cpRounds(r.cricketPractice).forEach(round => addCricketRound(round));
 
       updateCuCalc();
       updateZoCalc();
@@ -555,17 +550,6 @@ function initRecordForm(editId) {
       updateTotalCalc();
     }
   }
-}
-
-function buildCricketInputs() {
-  const c = document.getElementById('cricket-inputs');
-  c.innerHTML = CRICKET_NUMS.map(n => `
-    <div class="cricket-item">
-      <label for="ci-${n}">${n}</label>
-      <input type="number" id="ci-${n}" min="1" max="99" placeholder="-"
-             inputmode="numeric"
-             oninput="updateCricketCalc(); updateTotalCalc()">
-    </div>`).join('');
 }
 
 /* --- COUNT-UP --- */
@@ -687,27 +671,71 @@ function updateZoCalc() {
 }
 
 /* --- CRICKET --- */
-function getCricketPractice() {
-  const out = {};
-  CRICKET_NUMS.forEach(n => {
-    const v = Number(document.getElementById(`ci-${n}`)?.value);
-    if (v > 0) out[n] = v;
+function addCricketRound(data = {}) {
+  const roundId = `cr-${Utils.genId()}`;
+  State.cricketRounds.push(roundId);
+
+  const container = document.getElementById('cricket-rounds');
+  const roundNum  = State.cricketRounds.length;
+
+  const div = document.createElement('div');
+  div.className = 'cricket-round';
+  div.id = roundId;
+  div.innerHTML = `
+    <div class="cricket-round-header">
+      <span class="cricket-round-label">ラウンド ${roundNum}</span>
+      <button type="button" class="btn-remove" onclick="removeCricketRound('${roundId}')">✕</button>
+    </div>
+    <div class="cricket-grid">
+      ${CRICKET_NUMS.map(n => `
+        <div class="cricket-item">
+          <label>${n}</label>
+          <input type="number" id="${roundId}-${n}" min="1" max="99" placeholder="-"
+                 inputmode="numeric" value="${data[n] || ''}"
+                 oninput="updateCricketCalc(); updateTotalCalc()">
+        </div>`).join('')}
+    </div>`;
+  container.appendChild(div);
+  updateCricketCalc();
+}
+
+function removeCricketRound(roundId) {
+  document.getElementById(roundId)?.remove();
+  State.cricketRounds = State.cricketRounds.filter(id => id !== roundId);
+  document.querySelectorAll('.cricket-round').forEach((el, i) => {
+    el.querySelector('.cricket-round-label').textContent = `ラウンド ${i + 1}`;
   });
-  return Object.keys(out).length ? out : null;
+  updateCricketCalc();
+  updateTotalCalc();
+}
+
+function getCricketPractice() {
+  const rounds = [];
+  document.querySelectorAll('.cricket-round').forEach(roundEl => {
+    const round = {};
+    CRICKET_NUMS.forEach(n => {
+      const v = Number(roundEl.querySelector(`[id$="-${n}"]`)?.value);
+      if (v > 0) round[n] = v;
+    });
+    if (Object.keys(round).length) rounds.push(round);
+  });
+  return rounds.length ? rounds : null;
 }
 
 function updateCricketCalc() {
   const cp = getCricketPractice();
   const el = document.getElementById('cricket-calc');
   if (!cp) {
-    el.innerHTML = '<span class="calc-placeholder">ナンバーを入力してください</span>';
+    el.innerHTML = '<span class="calc-placeholder">ラウンドを追加してください</span>';
     return;
   }
-  const total = Object.values(cp).reduce((s, v) => s + v, 0);
-  const count = Object.keys(cp).length;
+  const totalDarts  = Calc.cricketDarts(cp);
+  const totalRounds = cp.length;
+  const numCount    = new Set(cp.flatMap(r => Object.keys(r))).size;
   el.innerHTML = `
-    入力ナンバー: <span class="calc-value">${count}種</span>
-    投擲数: <span class="calc-value">${total}投</span>
+    ラウンド数: <span class="calc-value">${totalRounds}回</span>
+    入力ナンバー: <span class="calc-value">${numCount}種</span>
+    投擲数: <span class="calc-value">${totalDarts}投</span>
   `;
 }
 
@@ -909,16 +937,21 @@ function showDetail(id) {
 
   // Cricket
   if (r.cricketPractice) {
-    const cp = r.cricketPractice;
+    const rounds = Calc.cpRounds(r.cricketPractice);
     html += `<div class="detail-section"><h3>クリケットナンバー練習</h3>`;
-    html += `<div class="detail-cricket">`;
-    CRICKET_NUMS.forEach(n => {
-      if (cp[n]) {
-        html += `<div class="detail-cricket-item"><div class="dc-num">${n}</div><div class="dc-val">${cp[n]}</div></div>`;
+    rounds.forEach((round, i) => {
+      if (rounds.length > 1) {
+        html += `<div style="font-size:12px;color:var(--text-muted);font-weight:700;margin:10px 0 6px">ラウンド ${i + 1}</div>`;
       }
+      html += `<div class="detail-cricket">`;
+      CRICKET_NUMS.forEach(n => {
+        if (round[n]) {
+          html += `<div class="detail-cricket-item"><div class="dc-num">${n}</div><div class="dc-val">${round[n]}</div></div>`;
+        }
+      });
+      html += `</div>`;
     });
-    html += `</div>`;
-    html += `<div style="margin-top:8px;font-size:14px;color:var(--text-secondary)">合計: <span style="color:var(--accent);font-weight:600">${Calc.cricketDarts(cp)}投</span></div>`;
+    html += `<div style="margin-top:8px;font-size:14px;color:var(--text-secondary)">合計: <span style="color:var(--accent);font-weight:600">${Calc.cricketDarts(r.cricketPractice)}投</span></div>`;
     html += `</div>`;
   }
 
@@ -1183,6 +1216,7 @@ function init() {
   document.getElementById('practice-form').addEventListener('submit', handleFormSubmit);
   document.getElementById('add-countup-game').addEventListener('click', () => addCuGame());
   document.getElementById('add-zeroone-game').addEventListener('click', () => addZoGame());
+  document.getElementById('add-cricket-round').addEventListener('click', () => addCricketRound());
   document.getElementById('cancel-record').addEventListener('click', () => {
     navigate(State.editId ? 'history' : 'home');
   });
