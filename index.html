@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>ダーツ練習記録</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ホーム画面 -->
+    <section id="screen-home" class="screen active">
+      <header class="screen-header">
+        <h1>ダーツ練習記録</h1>
+      </header>
+      <div class="screen-content" id="home-content"></div>
+    </section>
+
+    <!-- 練習記録画面 -->
+    <section id="screen-record" class="screen">
+      <header class="screen-header">
+        <button class="header-back" id="record-back">◀</button>
+        <h1 id="record-title">練習を記録する</h1>
+      </header>
+      <div class="screen-content">
+        <form id="practice-form" novalidate>
+
+          <!-- 基本情報 -->
+          <div class="form-section">
+            <h2 class="section-title">基本情報</h2>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="f-date">練習日</label>
+                <input type="date" id="f-date" required>
+              </div>
+              <div class="form-group">
+                <label for="f-minutes">練習時間（分）</label>
+                <input type="number" id="f-minutes" min="1" max="600" placeholder="例：75" inputmode="numeric">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="f-memo">メモ（気づき・課題など）</label>
+              <textarea id="f-memo" rows="3" placeholder="今日の気づきや課題を記録..."></textarea>
+            </div>
+          </div>
+
+          <!-- COUNT-UP -->
+          <div class="form-section">
+            <h2 class="section-title">
+              <span>COUNT-UP</span>
+              <span class="section-badge">1ゲーム＝24投</span>
+            </h2>
+            <div id="countup-games"></div>
+            <button type="button" id="add-countup-game" class="btn-add">＋ ゲームを追加</button>
+            <div class="auto-calc" id="countup-calc">
+              <span class="calc-placeholder">ゲームを追加してください</span>
+            </div>
+          </div>
+
+          <!-- 01 -->
+          <div class="form-section">
+            <h2 class="section-title">01ゲーム</h2>
+            <div id="zeroone-games"></div>
+            <button type="button" id="add-zeroone-game" class="btn-add">＋ ゲームを追加</button>
+            <div class="auto-calc" id="zeroone-calc">
+              <span class="calc-placeholder">ゲームを追加してください</span>
+            </div>
+          </div>
+
+          <!-- クリケットナンバー練習 -->
+          <div class="form-section">
+            <h2 class="section-title">クリケットナンバー練習</h2>
+            <p class="section-desc">10カウント入れるまでの投数を入力してください（未実施は空欄）</p>
+            <div id="cricket-inputs" class="cricket-grid"></div>
+            <div class="auto-calc" id="cricket-calc">
+              <span class="calc-placeholder">ナンバーを入力してください</span>
+            </div>
+          </div>
+
+          <!-- 総投擲数 -->
+          <div class="form-section total-section">
+            <h2 class="section-title">総投擲数（自動計算）</h2>
+            <div id="total-calc">
+              <div class="total-darts">0<span class="total-unit"> 投</span></div>
+              <div class="total-breakdown">
+                <div class="breakdown-item">
+                  <div class="b-label">COUNT-UP</div>
+                  <div class="b-value" id="bd-countup">0</div>
+                </div>
+                <div class="breakdown-item">
+                  <div class="b-label">01</div>
+                  <div class="b-value" id="bd-zeroone">0</div>
+                </div>
+                <div class="breakdown-item">
+                  <div class="b-label">クリケット</div>
+                  <div class="b-value" id="bd-cricket">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ボタン -->
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-large">保存する</button>
+            <button type="button" id="cancel-record" class="btn-secondary btn-large">キャンセル</button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- 履歴画面 -->
+    <section id="screen-history" class="screen">
+      <header class="screen-header">
+        <h1>練習履歴</h1>
+      </header>
+      <div class="screen-content" id="history-content"></div>
+    </section>
+
+    <!-- ベスト記録画面 -->
+    <section id="screen-best" class="screen">
+      <header class="screen-header">
+        <h1>自己ベスト</h1>
+      </header>
+      <div class="screen-content" id="best-content"></div>
+    </section>
+
+    <!-- クリケットランキング画面 -->
+    <section id="screen-ranking" class="screen">
+      <header class="screen-header">
+        <h1>クリケット 得意・苦手</h1>
+      </header>
+      <div class="screen-content" id="ranking-content"></div>
+    </section>
+
+    <!-- 月間レポート画面 -->
+    <section id="screen-monthly" class="screen">
+      <header class="screen-header">
+        <h1>月間レポート</h1>
+      </header>
+      <div class="screen-content" id="monthly-content"></div>
+    </section>
+
+  </div>
+
+  <!-- ボトムナビ -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-screen="home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">ホーム</span>
+    </button>
+    <button class="nav-btn" data-screen="record">
+      <span class="nav-icon">✏️</span>
+      <span class="nav-label">記録</span>
+    </button>
+    <button class="nav-btn" data-screen="history">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">履歴</span>
+    </button>
+    <button class="nav-btn" data-screen="best">
+      <span class="nav-icon">🏆</span>
+      <span class="nav-label">ベスト</span>
+    </button>
+    <button class="nav-btn" data-screen="ranking">
+      <span class="nav-icon">🎯</span>
+      <span class="nav-label">ランキング</span>
+    </button>
+    <button class="nav-btn" data-screen="monthly">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">月間</span>
+    </button>
+  </nav>
+
+  <!-- 詳細モーダル -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-edit" class="btn-primary">編集</button>
+        <button id="modal-delete" class="btn-danger">削除</button>
+        <button id="modal-close" class="btn-secondary">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 削除確認モーダル -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-overlay" id="confirm-overlay"></div>
+    <div class="confirm-sheet">
+      <p class="confirm-text">この記録を削除しますか？</p>
+      <div class="confirm-actions">
+        <button id="confirm-yes" class="btn-danger">削除する</button>
+        <button id="confirm-no" class="btn-secondary">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- 自己ベスト演出 -->
+  <div id="celebration" class="celebration hidden">
+    <div class="celebration-box">
+      <span class="cel-emoji">🎯</span>
+      <h2 class="cel-title">自己ベスト更新！</h2>
+      <p class="cel-sub" id="cel-detail"></p>
+      <p class="cel-tap">タップして閉じる</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
