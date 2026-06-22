@@ -1123,8 +1123,8 @@ function renderMonthly() {
 
   // Cricket improvement
   const improvements = CRICKET_NUMS
-    .filter(n => stats.cricketAvg[n] !== null && prev?.cricketAvg?.[n] !== null)
-    .map(n => ({ n, diff: (prev.cricketAvg[n] || 0) - stats.cricketAvg[n] }))
+    .filter(n => stats.cricketAvg[n] !== null && prev !== null && prev.cricketAvg[n] !== null)
+    .map(n => ({ n, diff: prev.cricketAvg[n] - stats.cricketAvg[n] }))
     .sort((a, b) => b.diff - a.diff);
   const mostImproved = improvements.length && improvements[0].diff > 0 ? improvements[0] : null;
   const worstNum = CRICKET_NUMS.filter(n => stats.cricketAvg[n] !== null).sort((a, b) => stats.cricketAvg[b] - stats.cricketAvg[a])[0];
