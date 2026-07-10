@@ -238,7 +238,10 @@ const Timer = (() => {
     updateUI();
     if (seconds > 0) {
       const field = document.getElementById('f-minutes');
-      if (field && !field.value) field.value = Math.max(1, Math.round(seconds / 60));
+      if (field) {
+        const existing = Number(field.value) || 0;
+        field.value = existing + Math.max(1, Math.round(seconds / 60));
+      }
     }
   }
 
