@@ -1682,6 +1682,56 @@ body {
   margin: 4px 0 0;
 }
 
+.goal-cricket-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 14px 0 8px;
+  letter-spacing: 0.3px;
+}
+
+.goal-cricket-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.goal-cricket-cell {
+  background: var(--bg-secondary);
+  border-radius: var(--r-sm);
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.goal-cricket-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.goal-cricket-cell .goal-input-wrap {
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 5px;
+}
+
+.goal-input--sm {
+  width: 52px;
+  padding: 5px 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.goal-cricket-cell .goal-pct {
+  font-size: 10px;
+}
+
+.goal-cricket-cell .goal-bar-wrap {
+  margin-bottom: 3px;
+}
+
 /* ============================================================
    CRICKET ROUND ACTIONS (count start + remove)
    ============================================================ */

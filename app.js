@@ -282,29 +282,48 @@ function saveGoal(key, value) {
 }
 
 function buildGoalProgress(key, goalVal) {
-  const records = Storage.getAll();
-  const b = Calc.allBests(records);
-  let current = null, unit = '', fixed = 0;
-  if (key === 'cuScore') {
-    const scores = records.flatMap(r => (r.countUp?.games || []).map(g => Number(g.score) || 0)).filter(v => v > 0);
-    current = scores.length ? Utils.avg(scores) : null;
-    unit = 'pts'; fixed = 1;
+  const stats = Calc.monthlyStats(Storage.getAll(), Utils.currentYM());
+  let current = null, unit = '', fixed = 1, lowerBetter = false;
+
+  if (key === 'cuScore')  { current = stats?.cuAvg ?? null;                        unit = 'pts'; }
+  if (key === 'zo501Avg') { current = stats?.zoStats?.['501']?.avgAvg ?? null;     unit = '';    }
+  if (key === 'mDays')    { current = stats?.days ?? null;                          unit = '日';  fixed = 0; }
+  if (key.startsWith('cricket_')) {
+    const n = key.replace('cricket_', '');
+    current = stats?.cricketAvg?.[n] ?? null;
+    unit = '投'; lowerBetter = true;
   }
-  if (key === 'zo501Avg') {
-    const avgs = records.flatMap(r => (r.zeroOne || []).filter(g => g.type === '501').map(g => Number(g.average) || 0)).filter(v => v > 0);
-    current = avgs.length ? Utils.avg(avgs) : null;
-    unit = ''; fixed = 1;
-  }
-  if (key === 'mDays') { current = b.mBestDays; unit = '日'; }
-  if (current === null)   return `<p class="goal-no-data">記録がまだありません</p>`;
-  const pct      = Math.min(100, (current / goalVal) * 100);
-  const achieved = pct >= 100;
-  const fmt      = v => fixed ? Number(v).toFixed(fixed) : v;
+
+  if (current === null) return `<p class="goal-no-data">今月の記録がまだありません</p>`;
+
+  const fmt      = v => (fixed ? Number(v).toFixed(fixed) : v) + unit;
+  const pct      = lowerBetter
+    ? (current <= goalVal ? 100 : Math.min(100, (goalVal / current) * 100))
+    : Math.min(100, (current / goalVal) * 100);
+  const achieved = lowerBetter ? current <= goalVal : pct >= 100;
+
   return `
     <div class="goal-bar-wrap">
       <div class="goal-bar${achieved ? ' goal-bar--done' : ''}" style="width:${pct.toFixed(1)}%"></div>
     </div>
-    <span class="goal-pct">${achieved ? '🎉 ' : ''}${fmt(current)}${unit} / ${fmt(goalVal)}${unit}</span>`;
+    <span class="goal-pct">${achieved ? '🎉 ' : ''}${fmt(current)} / 目標 ${fmt(goalVal)}</span>`;
+}
+
+function buildCricketGoalItem(n) {
+  const key     = `cricket_${n}`;
+  const goalVal = Goals.get()[key];
+  return `
+    <div class="goal-cricket-cell">
+      <div class="goal-cricket-num">${n}</div>
+      <div class="goal-input-wrap">
+        <input type="number" class="goal-input goal-input--sm"
+               value="${goalVal || ''}" placeholder="-"
+               inputmode="numeric"
+               oninput="saveGoal('${key}', this.value)">
+        <span class="goal-unit">投</span>
+      </div>
+      <div id="goal-prog-${key}">${goalVal ? buildGoalProgress(key, goalVal) : ''}</div>
+    </div>`;
 }
 
 function buildGoalItem(key, label, unit, placeholder) {
@@ -1500,11 +1519,15 @@ function renderBest() {
     </div>
 
     <div class="best-group goals-group">
-      <h3>🎯 目標設定</h3>
-      <p class="goals-hint">目標を入力すると達成状況が表示されます</p>
+      <h3>🎯 目標設定（今月）</h3>
+      <p class="goals-hint">今月の平均実績と比較します</p>
       ${buildGoalItem('cuScore',  'COUNT-UP 平均スコア', 'pts', '例: 500')}
-      ${buildGoalItem('zo501Avg', '501 平均AVG',        '',    '例: 60.0')}
-      ${buildGoalItem('mDays',    '月間練習日数',        '日',  '例: 20')}
+      ${buildGoalItem('zo501Avg', '501 平均AVG',         '',    '例: 60.0')}
+      ${buildGoalItem('mDays',    '月間練習日数',         '日',  '例: 20')}
+      <div class="goal-cricket-header">クリケット 平均投数目標（少ないほど達成）</div>
+      <div class="goal-cricket-grid">
+        ${CRICKET_NUMS.map(n => buildCricketGoalItem(n)).join('')}
+      </div>
     </div>
   `;
 }
