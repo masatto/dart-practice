@@ -1446,3 +1446,67 @@ body {
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
+
+/* ============================================================
+   01 ESTIMATED DARTS
+   ============================================================ */
+.zo-est {
+  font-size: 12px;
+  color: var(--accent-light);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+/* ============================================================
+   CRICKET COUNTER
+   ============================================================ */
+.cnt-wrap {
+  margin-top: 5px;
+}
+
+.cnt-info {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-weight: 600;
+  margin-bottom: 3px;
+  letter-spacing: 0.2px;
+}
+
+.cnt-info--done {
+  color: var(--success);
+}
+
+.cnt-btns {
+  display: flex;
+  gap: 3px;
+}
+
+.btn-cnt-miss,
+.btn-cnt-hit {
+  flex: 1;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.btn-cnt-miss:active,
+.btn-cnt-hit:active { opacity: 0.65; }
+
+.btn-cnt-miss {
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-cnt-hit {
+  background: var(--accent);
+  color: #fff;
+}

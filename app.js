@@ -647,7 +647,7 @@ function initRecordForm(editId) {
       document.getElementById('f-memo').value    = r.memo || '';
 
       (r.countUp?.games || []).forEach(g => addCuGame(g.score));
-      (r.zeroOne || []).forEach(g => addZoGame(g.type, g.average, g.darts));
+      (r.zeroOne || []).forEach(g => addZoGame(g.type, g.average));
 
       // 旧オブジェクト形式・新配列形式どちらも対応
       Calc.cpRounds(r.cricketPractice).forEach(round => addCricketRound(round));
@@ -715,7 +715,7 @@ function updateCuCalc() {
 }
 
 /* --- 01 --- */
-function addZoGame(type = '501', avg = '', darts = '') {
+function addZoGame(type = '501', avg = '') {
   const rows = document.querySelectorAll('#zeroone-games .game-row');
   const num  = rows.length + 1;
   const id   = `zo-${Utils.genId()}`;
@@ -727,7 +727,7 @@ function addZoGame(type = '501', avg = '', darts = '') {
   row.id = id;
   row.innerHTML = `
     <span class="game-num">${num}</span>
-    <select class="input-type" onchange="updateZoCalc()">
+    <select class="input-type" onchange="updateZoGame('${id}'); updateZoCalc()">
       ${makeOption('301','301')}
       ${makeOption('501','501')}
       ${makeOption('701','701')}
@@ -736,16 +736,23 @@ function addZoGame(type = '501', avg = '', darts = '') {
     <input type="number" class="input-avg" min="0" max="300" step="0.1"
            placeholder="0.0" value="${Utils.esc(String(avg || ''))}"
            inputmode="decimal"
-           oninput="updateZoCalc()">
-    <span class="input-label">投</span>
-    <input type="number" class="input-darts" min="1" max="999"
-           placeholder="0" value="${Utils.esc(String(darts || ''))}"
-           inputmode="numeric"
-           oninput="updateZoCalc(); updateTotalCalc()">
+           oninput="updateZoGame('${id}'); updateZoCalc()">
+    <span class="zo-est" id="zo-est-${id}">≈ - 投</span>
     <button type="button" class="btn-remove" onclick="removeZoGame('${id}')">✕</button>
   `;
   document.getElementById('zeroone-games').appendChild(row);
+  updateZoGame(id);
   updateZoCalc();
+}
+
+function updateZoGame(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  const type = row.querySelector('.input-type').value;
+  const avg  = Number(row.querySelector('.input-avg').value) || 0;
+  const est  = document.getElementById(`zo-est-${id}`);
+  if (est) est.textContent = avg > 0 ? `≈ ${Math.round(Number(type) / avg * 3)} 投` : '≈ - 投';
+  updateTotalCalc();
 }
 
 function removeZoGame(id) {
@@ -757,11 +764,12 @@ function removeZoGame(id) {
 }
 
 function getZoGames() {
-  return Array.from(document.querySelectorAll('#zeroone-games .game-row')).map(row => ({
-    type:    row.querySelector('.input-type').value,
-    average: Number(row.querySelector('.input-avg').value) || 0,
-    darts:   Number(row.querySelector('.input-darts').value) || 0,
-  })).filter(g => g.darts > 0);
+  return Array.from(document.querySelectorAll('#zeroone-games .game-row')).map(row => {
+    const type    = row.querySelector('.input-type').value;
+    const average = Number(row.querySelector('.input-avg').value) || 0;
+    const darts   = average > 0 ? Math.round(Number(type) / average * 3) : 0;
+    return { type, average, darts };
+  }).filter(g => g.average > 0);
 }
 
 function updateZoCalc() {
@@ -800,11 +808,40 @@ function addCricketRound(data = {}) {
           <label>${n}</label>
           <input type="number" id="${roundId}-${n}" min="1" max="99" placeholder="-"
                  inputmode="numeric" value="${data[n] || ''}"
+                 data-throws="0" data-hits="0"
                  oninput="updateCricketCalc(); updateTotalCalc()">
+          <div class="cnt-wrap">
+            <span class="cnt-info" id="cnt-${roundId}-${n}">0/10</span>
+            <div class="cnt-btns">
+              <button type="button" class="btn-cnt-miss" onclick="cricketCount('${roundId}','${n}',false)">投</button>
+              <button type="button" class="btn-cnt-hit"  onclick="cricketCount('${roundId}','${n}',true)">入</button>
+            </div>
+          </div>
         </div>`).join('')}
     </div>`;
   container.appendChild(div);
   updateCricketCalc();
+}
+
+function cricketCount(roundId, num, isHit) {
+  const input  = document.getElementById(`${roundId}-${num}`);
+  const throws = (Number(input.dataset.throws) || 0) + 1;
+  const hits   = (Number(input.dataset.hits)   || 0) + (isHit ? 1 : 0);
+  input.dataset.throws = throws;
+  input.dataset.hits   = hits;
+
+  const done = hits >= 10;
+  if (done && !input.value) {
+    input.value = throws;
+    updateCricketCalc();
+    updateTotalCalc();
+  }
+
+  const display = document.getElementById(`cnt-${roundId}-${num}`);
+  if (display) {
+    display.textContent = done ? `✓ ${throws}投` : `${hits}/10`;
+    display.className   = `cnt-info${done ? ' cnt-info--done' : ''}`;
+  }
 }
 
 function removeCricketRound(roundId) {
