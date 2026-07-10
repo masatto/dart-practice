@@ -839,7 +839,7 @@ function cricketCount(roundId, num, isHit) {
 
   const display = document.getElementById(`cnt-${roundId}-${num}`);
   if (display) {
-    display.textContent = done ? `✓ ${throws}投` : `${hits}/10`;
+    display.textContent = done ? `✓ ${throws}投` : `${throws}投 ${hits}/10`;
     display.className   = `cnt-info${done ? ' cnt-info--done' : ''}`;
   }
 }
