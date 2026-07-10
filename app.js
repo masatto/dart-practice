@@ -282,11 +282,20 @@ function saveGoal(key, value) {
 }
 
 function buildGoalProgress(key, goalVal) {
-  const b = Calc.allBests(Storage.getAll());
+  const records = Storage.getAll();
+  const b = Calc.allBests(records);
   let current = null, unit = '', fixed = 0;
-  if (key === 'cuScore')  { current = b.cuBest;              unit = 'pts'; }
-  if (key === 'zo501Avg') { current = b.zoAvgBests?.['501']; unit = '';    fixed = 1; }
-  if (key === 'mDays')    { current = b.mBestDays;           unit = '日';  }
+  if (key === 'cuScore') {
+    const scores = records.flatMap(r => (r.countUp?.games || []).map(g => Number(g.score) || 0)).filter(v => v > 0);
+    current = scores.length ? Utils.avg(scores) : null;
+    unit = 'pts'; fixed = 1;
+  }
+  if (key === 'zo501Avg') {
+    const avgs = records.flatMap(r => (r.zeroOne || []).filter(g => g.type === '501').map(g => Number(g.average) || 0)).filter(v => v > 0);
+    current = avgs.length ? Utils.avg(avgs) : null;
+    unit = ''; fixed = 1;
+  }
+  if (key === 'mDays') { current = b.mBestDays; unit = '日'; }
   if (current === null)   return `<p class="goal-no-data">記録がまだありません</p>`;
   const pct      = Math.min(100, (current / goalVal) * 100);
   const achieved = pct >= 100;
@@ -1493,8 +1502,8 @@ function renderBest() {
     <div class="best-group goals-group">
       <h3>🎯 目標設定</h3>
       <p class="goals-hint">目標を入力すると達成状況が表示されます</p>
-      ${buildGoalItem('cuScore',  'COUNT-UP 最高スコア', 'pts', '例: 600')}
-      ${buildGoalItem('zo501Avg', '501 AVG',            '',    '例: 70.0')}
+      ${buildGoalItem('cuScore',  'COUNT-UP 平均スコア', 'pts', '例: 500')}
+      ${buildGoalItem('zo501Avg', '501 平均AVG',        '',    '例: 60.0')}
       ${buildGoalItem('mDays',    '月間練習日数',        '日',  '例: 20')}
     </div>
   `;
