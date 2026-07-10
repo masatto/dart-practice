@@ -203,6 +203,116 @@ const Cloud = (() => {
 })();
 
 /* ============================================================
+   TIMER
+   ============================================================ */
+const Timer = (() => {
+  let interval = null;
+  let seconds  = 0;
+  let running  = false;
+
+  function tick() {
+    seconds++;
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent =
+      `${String(Math.floor(seconds / 60)).padStart(2,'0')}:${String(seconds % 60).padStart(2,'0')}`;
+  }
+
+  function updateUI() {
+    const btn = document.getElementById('timer-toggle');
+    if (!btn) return;
+    btn.textContent = running ? '⏸ 停止' : '▶ 開始';
+    btn.className   = `timer-btn timer-btn--${running ? 'stop' : 'start'}`;
+  }
+
+  function start() {
+    if (running) return;
+    running  = true;
+    interval = setInterval(tick, 1000);
+    updateUI();
+  }
+
+  function stop() {
+    if (!running) return;
+    clearInterval(interval);
+    running = false;
+    updateUI();
+    if (seconds > 0) {
+      const field = document.getElementById('f-minutes');
+      if (field && !field.value) field.value = Math.max(1, Math.round(seconds / 60));
+    }
+  }
+
+  function reset() {
+    clearInterval(interval);
+    running  = false;
+    seconds  = 0;
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = '00:00';
+    updateUI();
+  }
+
+  function toggle() { running ? stop() : start(); }
+
+  return { toggle, reset };
+})();
+
+/* ============================================================
+   GOALS
+   ============================================================ */
+const Goals = (() => {
+  const KEY = 'darts_goals_v1';
+  function get() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+  }
+  function save(g) { localStorage.setItem(KEY, JSON.stringify(g)); }
+  return { get, save };
+})();
+
+function saveGoal(key, value) {
+  const g = Goals.get();
+  const n = Number(value);
+  if (!value || isNaN(n) || n <= 0) delete g[key];
+  else g[key] = n;
+  Goals.save(g);
+  const el = document.getElementById(`goal-prog-${key}`);
+  if (el) el.innerHTML = n > 0 ? buildGoalProgress(key, n) : '';
+}
+
+function buildGoalProgress(key, goalVal) {
+  const b = Calc.allBests(Storage.getAll());
+  let current = null, unit = '', fixed = 0;
+  if (key === 'cuScore')  { current = b.cuBest;              unit = 'pts'; }
+  if (key === 'zo501Avg') { current = b.zoAvgBests?.['501']; unit = '';    fixed = 1; }
+  if (key === 'mDays')    { current = b.mBestDays;           unit = '日';  }
+  if (current === null)   return `<p class="goal-no-data">記録がまだありません</p>`;
+  const pct      = Math.min(100, (current / goalVal) * 100);
+  const achieved = pct >= 100;
+  const fmt      = v => fixed ? Number(v).toFixed(fixed) : v;
+  return `
+    <div class="goal-bar-wrap">
+      <div class="goal-bar${achieved ? ' goal-bar--done' : ''}" style="width:${pct.toFixed(1)}%"></div>
+    </div>
+    <span class="goal-pct">${achieved ? '🎉 ' : ''}${fmt(current)}${unit} / ${fmt(goalVal)}${unit}</span>`;
+}
+
+function buildGoalItem(key, label, unit, placeholder) {
+  const goalVal = Goals.get()[key];
+  return `
+    <div class="goal-item">
+      <div class="goal-header">
+        <span class="goal-label">${label}</span>
+        <div class="goal-input-wrap">
+          <input type="number" class="goal-input" value="${goalVal || ''}"
+                 placeholder="${placeholder}" inputmode="numeric"
+                 oninput="saveGoal('${key}', this.value)">
+          <span class="goal-unit">${unit}</span>
+        </div>
+      </div>
+      <div id="goal-prog-${key}">${goalVal ? buildGoalProgress(key, goalVal) : ''}</div>
+    </div>`;
+}
+
+/* ============================================================
    UTILS
    ============================================================ */
 const Utils = {
@@ -622,6 +732,7 @@ function renderHomeReport(records, ym) {
    RECORD FORM
    ============================================================ */
 function initRecordForm(editId) {
+  Timer.reset();
   State.editId = editId;
   State.cricketRounds = [];
 
@@ -1172,6 +1283,14 @@ function renderBest() {
       ${bestItem('最多投擲数', b.mBestDarts !== null ? `<span class="best-val">${b.mBestDarts.toLocaleString()}投</span>` : `<span class="best-val no-data">-</span>`)}
       ${bestItem('最多練習時間', val(b.mBestMinutes, '分'))}
     </div>
+
+    <div class="best-group goals-group">
+      <h3>🎯 目標設定</h3>
+      <p class="goals-hint">目標を入力すると達成状況が表示されます</p>
+      ${buildGoalItem('cuScore',  'COUNT-UP 最高スコア', 'pts', '例: 600')}
+      ${buildGoalItem('zo501Avg', '501 AVG',            '',    '例: 70.0')}
+      ${buildGoalItem('mDays',    '月間練習日数',        '日',  '例: 20')}
+    </div>
   `;
 }
 
@@ -1385,6 +1504,10 @@ function init() {
       }
     });
   });
+
+  // Timer
+  document.getElementById('timer-toggle').addEventListener('click', () => Timer.toggle());
+  document.getElementById('timer-reset').addEventListener('click',  () => Timer.reset());
 
   // Record back button
   document.getElementById('record-back').addEventListener('click', () => {

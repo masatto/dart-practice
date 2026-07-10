@@ -30,6 +30,14 @@
         <button class="header-back" id="record-back">◀</button>
         <h1 id="record-title">練習を記録する</h1>
       </header>
+      <!-- タイマー -->
+      <div id="practice-timer" class="practice-timer">
+        <span id="timer-display" class="timer-display">00:00</span>
+        <div class="timer-controls">
+          <button type="button" id="timer-toggle" class="timer-btn timer-btn--start">▶ 開始</button>
+          <button type="button" id="timer-reset"  class="timer-btn timer-btn--reset">↺</button>
+        </div>
+      </div>
       <div class="screen-content">
         <form id="practice-form" novalidate>
 
@@ -55,11 +63,12 @@
           <!-- COUNT-UP -->
           <div class="form-section">
             <h2 class="section-title">
-              <span>COUNT-UP</span>
+              <span>🎯 COUNT-UP</span>
               <span class="section-badge">1ゲーム＝24投</span>
             </h2>
+            <p class="section-desc">ゲームのスコアを1件ずつ追加してください</p>
             <div id="countup-games"></div>
-            <button type="button" id="add-countup-game" class="btn-add">＋ ゲームを追加</button>
+            <button type="button" id="add-countup-game" class="btn-add">＋ COUNT-UPを追加</button>
             <div class="auto-calc" id="countup-calc">
               <span class="calc-placeholder">ゲームを追加してください</span>
             </div>
@@ -67,9 +76,10 @@
 
           <!-- 01 -->
           <div class="form-section">
-            <h2 class="section-title">01ゲーム</h2>
+            <h2 class="section-title">🎮 01ゲーム</h2>
+            <p class="section-desc">種別とAVGを入力 — 投数は自動で計算されます</p>
             <div id="zeroone-games"></div>
-            <button type="button" id="add-zeroone-game" class="btn-add">＋ ゲームを追加</button>
+            <button type="button" id="add-zeroone-game" class="btn-add">＋ 01ゲームを追加</button>
             <div class="auto-calc" id="zeroone-calc">
               <span class="calc-placeholder">ゲームを追加してください</span>
             </div>
@@ -77,8 +87,8 @@
 
           <!-- クリケットナンバー練習 -->
           <div class="form-section">
-            <h2 class="section-title">クリケットナンバー練習</h2>
-            <p class="section-desc">10カウント入れるまでの投数を入力してください（ラウンドを複数追加できます）</p>
+            <h2 class="section-title">🏏 クリケットナンバー練習</h2>
+            <p class="section-desc">投・入ボタンで練習しながらカウント → 10入ったら自動入力。または終了後に投数を直接入力</p>
             <div id="cricket-rounds"></div>
             <button type="button" id="add-cricket-round" class="btn-add">＋ ラウンドを追加</button>
             <div class="auto-calc" id="cricket-calc">
