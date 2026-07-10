@@ -313,6 +313,194 @@ function buildGoalItem(key, label, unit, placeholder) {
 }
 
 /* ============================================================
+   NUMPAD
+   ============================================================ */
+const NumPad = (() => {
+  let currentInput = null;
+  let currentValue = '';
+  let allowDecimal = false;
+
+  function open(inputEl, opts = {}) {
+    currentInput = inputEl;
+    currentValue = String(inputEl.value || '');
+    allowDecimal = !!opts.decimal;
+
+    document.getElementById('numpad-label').textContent = opts.label || '入力';
+    updateDisplay();
+
+    const dotKey = document.getElementById('numpad-dot');
+    if (dotKey) dotKey.disabled = !allowDecimal;
+
+    document.getElementById('numpad-overlay').classList.remove('hidden');
+    inputEl.blur();
+  }
+
+  function close() {
+    document.getElementById('numpad-overlay').classList.add('hidden');
+    currentInput = null;
+    currentValue = '';
+  }
+
+  function updateDisplay() {
+    document.getElementById('numpad-display').textContent = currentValue || '-';
+  }
+
+  function press(key) {
+    if (key === 'C') {
+      currentValue = '';
+    } else if (key === '⌫') {
+      currentValue = currentValue.slice(0, -1);
+    } else if (key === '.') {
+      if (!allowDecimal) return;
+      if (!currentValue) { currentValue = '0.'; }
+      else if (!currentValue.includes('.')) { currentValue += '.'; }
+    } else {
+      if (currentValue.length < 6) currentValue += key;
+    }
+    updateDisplay();
+  }
+
+  function confirm() {
+    if (currentInput) {
+      currentInput.value = currentValue;
+      currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    close();
+  }
+
+  function init() {
+    const keys = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
+    const grid = document.getElementById('numpad-grid');
+    grid.innerHTML = keys.map(k => {
+      const id  = k === '.' ? ' id="numpad-dot"' : '';
+      const cls = k === '⌫' ? ' numpad-key--del' : k === '.' ? ' numpad-key--dot' : '';
+      return `<button type="button" class="numpad-key${cls}"${id} data-key="${k}">${k}</button>`;
+    }).join('');
+
+    grid.addEventListener('click', e => {
+      const btn = e.target.closest('[data-key]');
+      if (btn) press(btn.dataset.key);
+    });
+
+    document.getElementById('numpad-clear').addEventListener('click', () => press('C'));
+    document.getElementById('numpad-confirm').addEventListener('click', confirm);
+    document.getElementById('numpad-backdrop').addEventListener('click', close);
+  }
+
+  return { open, close, press, confirm, init };
+})();
+
+/* ============================================================
+   CRICKET COUNT MODE
+   ============================================================ */
+const CricketCountMode = (() => {
+  let roundId   = null;
+  let numIndex  = 0;
+  let counts    = {};
+  let advancing = false;
+
+  function open(rid) {
+    roundId   = rid;
+    numIndex  = 0;
+    advancing = false;
+    CRICKET_NUMS.forEach(n => { counts[n] = { throws: 0, hits: 0 }; });
+    document.getElementById('count-mode').classList.remove('hidden');
+    renderNum();
+  }
+
+  function renderNum() {
+    const n    = CRICKET_NUMS[numIndex];
+    const done = counts[n].hits >= 10;
+
+    document.getElementById('cm-number').textContent   = n;
+    document.getElementById('cm-progress').textContent = `${numIndex + 1} / ${CRICKET_NUMS.length}`;
+    updateStatus();
+
+    document.getElementById('cm-miss').disabled = done;
+    document.getElementById('cm-hit').disabled  = done;
+  }
+
+  function updateStatus() {
+    const n    = CRICKET_NUMS[numIndex];
+    const { throws, hits } = counts[n];
+    const done = hits >= 10;
+    const el   = document.getElementById('cm-status');
+    el.textContent = done ? `✓ ${throws}投で10カウント！` : `${throws}投　${hits}/10`;
+    el.className   = `cm-status${done ? ' cm-status--done' : ''}`;
+  }
+
+  function miss() {
+    if (advancing) return;
+    counts[CRICKET_NUMS[numIndex]].throws++;
+    updateStatus();
+  }
+
+  function hit() {
+    if (advancing) return;
+    const n = CRICKET_NUMS[numIndex];
+    counts[n].throws++;
+    counts[n].hits++;
+
+    const done = counts[n].hits >= 10;
+    document.getElementById('cm-miss').disabled = done;
+    document.getElementById('cm-hit').disabled  = done;
+    updateStatus();
+
+    if (done && numIndex < CRICKET_NUMS.length - 1) {
+      advancing = true;
+      setTimeout(() => { advancing = false; next(); }, 1200);
+    }
+  }
+
+  function next() {
+    if (numIndex < CRICKET_NUMS.length - 1) {
+      numIndex++;
+      renderNum();
+    } else {
+      finish();
+    }
+  }
+
+  function finish() {
+    if (roundId) {
+      CRICKET_NUMS.forEach(n => {
+        const c = counts[n];
+        if (c.throws === 0) return;
+        const input = document.getElementById(`${roundId}-${n}`);
+        if (!input) return;
+        input.value          = c.throws;
+        input.dataset.throws = c.throws;
+        input.dataset.hits   = c.hits;
+
+        const infoEl = document.getElementById(`cnt-${roundId}-${n}`);
+        if (infoEl) {
+          const done     = c.hits >= 10;
+          infoEl.textContent = done ? `✓ ${c.throws}投` : `${c.throws}投 ${c.hits}/10`;
+          infoEl.className   = `cnt-info${done ? ' cnt-info--done' : ''}`;
+        }
+      });
+      updateCricketCalc();
+      updateTotalCalc();
+    }
+    close();
+  }
+
+  function close() {
+    document.getElementById('count-mode').classList.add('hidden');
+    roundId = null;
+  }
+
+  function init() {
+    document.getElementById('cm-miss').addEventListener('click', miss);
+    document.getElementById('cm-hit').addEventListener('click',  hit);
+    document.getElementById('cm-next').addEventListener('click', next);
+    document.getElementById('cm-close').addEventListener('click', finish);
+  }
+
+  return { open, close, init };
+})();
+
+/* ============================================================
    UTILS
    ============================================================ */
 const Utils = {
@@ -782,10 +970,11 @@ function addCuGame(scoreVal = '') {
   row.id = id;
   row.innerHTML = `
     <span class="game-num">${num}</span>
-    <input type="number" class="input-score" min="0" max="1200" placeholder="スコア"
+    <input type="text" class="input-score" placeholder="スコア"
+           readonly
            value="${Utils.esc(String(scoreVal || ''))}"
-           inputmode="numeric"
-           oninput="updateCuCalc(); updateTotalCalc()">
+           oninput="updateCuCalc(); updateTotalCalc()"
+           onclick="NumPad.open(this, {label:'COUNT-UP スコア'})">
     <button type="button" class="btn-remove" onclick="removeCuGame('${id}')">✕</button>
   `;
   document.getElementById('countup-games').appendChild(row);
@@ -844,10 +1033,11 @@ function addZoGame(type = '501', avg = '') {
       ${makeOption('701','701')}
     </select>
     <span class="input-label">AVG</span>
-    <input type="number" class="input-avg" min="0" max="300" step="0.1"
-           placeholder="0.0" value="${Utils.esc(String(avg || ''))}"
-           inputmode="decimal"
-           oninput="updateZoGame('${id}'); updateZoCalc()">
+    <input type="text" class="input-avg" placeholder="0.0"
+           readonly
+           value="${Utils.esc(String(avg || ''))}"
+           oninput="updateZoGame('${id}'); updateZoCalc()"
+           onclick="NumPad.open(this, {label:'アベレージ', decimal:true})">
     <span class="zo-est" id="zo-est-${id}">≈ - 投</span>
     <button type="button" class="btn-remove" onclick="removeZoGame('${id}')">✕</button>
   `;
@@ -911,18 +1101,23 @@ function addCricketRound(data = {}) {
   div.innerHTML = `
     <div class="cricket-round-header">
       <span class="cricket-round-label">ラウンド ${roundNum}</span>
-      <button type="button" class="btn-remove" onclick="removeCricketRound('${roundId}')">✕</button>
+      <div class="cricket-round-actions">
+        <button type="button" class="btn-count-start" onclick="CricketCountMode.open('${roundId}')">▶ カウント開始</button>
+        <button type="button" class="btn-remove" onclick="removeCricketRound('${roundId}')">✕</button>
+      </div>
     </div>
     <div class="cricket-grid">
       ${CRICKET_NUMS.map(n => `
         <div class="cricket-item">
           <label>${n}</label>
-          <input type="number" id="${roundId}-${n}" min="1" max="99" placeholder="-"
-                 inputmode="numeric" value="${data[n] || ''}"
+          <input type="text" id="${roundId}-${n}" placeholder="-"
+                 readonly
+                 value="${data[n] || ''}"
                  data-throws="0" data-hits="0"
-                 oninput="updateCricketCalc(); updateTotalCalc()">
+                 oninput="updateCricketCalc(); updateTotalCalc()"
+                 onclick="NumPad.open(this, {label:'${n}'})">
           <div class="cnt-wrap">
-            <span class="cnt-info" id="cnt-${roundId}-${n}">0/10</span>
+            <span class="cnt-info" id="cnt-${roundId}-${n}">0投 0/10</span>
             <div class="cnt-btns">
               <button type="button" class="btn-cnt-miss" onclick="cricketCount('${roundId}','${n}',false)">投</button>
               <button type="button" class="btn-cnt-hit"  onclick="cricketCount('${roundId}','${n}',true)">入</button>
@@ -1475,6 +1670,10 @@ function renderSyncBar(user) {
    INIT
    ============================================================ */
 function init() {
+  // カスタムUI初期化
+  NumPad.init();
+  CricketCountMode.init();
+
   // Firebase初期化・認証状態の監視
   Cloud.init();
   Cloud.onAuthChange(async user => {
