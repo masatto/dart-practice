@@ -229,6 +229,41 @@
     </div>
   </div>
 
+  <!-- カスタムテンキー -->
+  <div id="numpad-overlay" class="numpad-overlay hidden">
+    <div class="numpad-backdrop" id="numpad-backdrop"></div>
+    <div class="numpad-sheet">
+      <div class="numpad-header">
+        <span id="numpad-label" class="numpad-label"></span>
+        <div id="numpad-display" class="numpad-display">-</div>
+      </div>
+      <div id="numpad-grid" class="numpad-grid"></div>
+      <div class="numpad-footer">
+        <button type="button" class="numpad-key numpad-key--clear" id="numpad-clear">C クリア</button>
+        <button type="button" class="numpad-confirm" id="numpad-confirm">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- クリケット全画面カウントモード -->
+  <div id="count-mode" class="count-mode hidden">
+    <div class="cm-header">
+      <button class="cm-close" id="cm-close">✕ 終了</button>
+      <div class="cm-progress" id="cm-progress"></div>
+    </div>
+    <div class="cm-body">
+      <div class="cm-number" id="cm-number"></div>
+      <div class="cm-status" id="cm-status"></div>
+    </div>
+    <div class="cm-actions">
+      <button class="cm-action cm-action--miss" id="cm-miss">投<small>ミス</small></button>
+      <button class="cm-action cm-action--hit"  id="cm-hit">入<small>ヒット</small></button>
+    </div>
+    <div class="cm-footer">
+      <button class="cm-next" id="cm-next">次のナンバーへ →</button>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
