@@ -408,6 +408,13 @@ const CricketCountMode = (() => {
     renderNum();
   }
 
+  const HIT_IDS = ['cm-hit-s', 'cm-hit-d', 'cm-hit-t'];
+
+  function setHitButtonsDisabled(disabled) {
+    document.getElementById('cm-miss').disabled = disabled;
+    HIT_IDS.forEach(id => { document.getElementById(id).disabled = disabled; });
+  }
+
   function renderNum() {
     const n    = CRICKET_NUMS[numIndex];
     const done = counts[n].hits >= 10;
@@ -415,9 +422,7 @@ const CricketCountMode = (() => {
     document.getElementById('cm-number').textContent   = n;
     document.getElementById('cm-progress').textContent = `${numIndex + 1} / ${CRICKET_NUMS.length}`;
     updateStatus();
-
-    document.getElementById('cm-miss').disabled = done;
-    document.getElementById('cm-hit').disabled  = done;
+    setHitButtonsDisabled(done);
   }
 
   function updateStatus() {
@@ -435,15 +440,14 @@ const CricketCountMode = (() => {
     updateStatus();
   }
 
-  function hit() {
+  function hit(count) {
     if (advancing) return;
     const n = CRICKET_NUMS[numIndex];
     counts[n].throws++;
-    counts[n].hits++;
+    counts[n].hits += count;
 
     const done = counts[n].hits >= 10;
-    document.getElementById('cm-miss').disabled = done;
-    document.getElementById('cm-hit').disabled  = done;
+    setHitButtonsDisabled(done);
     updateStatus();
 
     if (done && numIndex < CRICKET_NUMS.length - 1) {
@@ -492,7 +496,9 @@ const CricketCountMode = (() => {
 
   function init() {
     document.getElementById('cm-miss').addEventListener('click', miss);
-    document.getElementById('cm-hit').addEventListener('click',  hit);
+    document.getElementById('cm-hit-s').addEventListener('click', () => hit(1));
+    document.getElementById('cm-hit-d').addEventListener('click', () => hit(2));
+    document.getElementById('cm-hit-t').addEventListener('click', () => hit(3));
     document.getElementById('cm-next').addEventListener('click', next);
     document.getElementById('cm-close').addEventListener('click', finish);
   }
@@ -1119,8 +1125,10 @@ function addCricketRound(data = {}) {
           <div class="cnt-wrap">
             <span class="cnt-info" id="cnt-${roundId}-${n}">0投 0/10</span>
             <div class="cnt-btns">
-              <button type="button" class="btn-cnt-miss" onclick="cricketCount('${roundId}','${n}',false)">投</button>
-              <button type="button" class="btn-cnt-hit"  onclick="cricketCount('${roundId}','${n}',true)">入</button>
+              <button type="button" class="btn-cnt-miss" onclick="cricketCount('${roundId}','${n}',0)">投</button>
+              <button type="button" class="btn-cnt-s"    onclick="cricketCount('${roundId}','${n}',1)">S</button>
+              <button type="button" class="btn-cnt-d"    onclick="cricketCount('${roundId}','${n}',2)">D</button>
+              <button type="button" class="btn-cnt-t"    onclick="cricketCount('${roundId}','${n}',3)">T</button>
             </div>
           </div>
         </div>`).join('')}
@@ -1129,10 +1137,10 @@ function addCricketRound(data = {}) {
   updateCricketCalc();
 }
 
-function cricketCount(roundId, num, isHit) {
+function cricketCount(roundId, num, count) {
   const input  = document.getElementById(`${roundId}-${num}`);
   const throws = (Number(input.dataset.throws) || 0) + 1;
-  const hits   = (Number(input.dataset.hits)   || 0) + (isHit ? 1 : 0);
+  const hits   = (Number(input.dataset.hits)   || 0) + count;
   input.dataset.throws = throws;
   input.dataset.hits   = hits;
 

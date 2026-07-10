@@ -1484,33 +1484,52 @@ body {
 }
 
 .cnt-btns {
-  display: flex;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px;
 }
 
 .btn-cnt-miss,
-.btn-cnt-hit {
-  flex: 1;
-  height: 28px;
+.btn-cnt-s,
+.btn-cnt-d,
+.btn-cnt-t {
+  height: 26px;
   border-radius: var(--r-sm);
   border: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   font-family: inherit;
   transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-cnt-miss:active,
-.btn-cnt-hit:active { opacity: 0.65; }
+.btn-cnt-s:active,
+.btn-cnt-d:active,
+.btn-cnt-t:active { opacity: 0.65; }
 
 .btn-cnt-miss {
+  grid-column: 1 / -1;
   background: var(--bg-card-hover);
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
 
-.btn-cnt-hit {
+.btn-cnt-s {
+  background: rgba(255, 107, 0, 0.15);
+  color: var(--accent-light);
+  border: 1px solid rgba(255, 107, 0, 0.3);
+}
+
+.btn-cnt-d {
+  background: rgba(255, 107, 0, 0.35);
+  color: var(--accent-light);
+  border: 1px solid var(--accent);
+}
+
+.btn-cnt-t {
   background: var(--accent);
   color: #fff;
 }
@@ -1911,18 +1930,23 @@ body {
 }
 
 .cm-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 0 16px 14px;
   flex-shrink: 0;
 }
 
+.cm-hit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
 .cm-action {
-  height: 150px;
   border: none;
   border-radius: var(--r-xl);
-  font-size: 40px;
+  font-size: 36px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -1945,21 +1969,24 @@ body {
 }
 
 .cm-action small {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   opacity: 0.85;
 }
 
 .cm-action--miss {
+  height: 72px;
   background: var(--bg-card);
   color: var(--text-secondary);
   border: 2px solid var(--border);
+  font-size: 28px;
 }
 
 .cm-action--hit {
+  height: 110px;
   background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: #fff;
-  box-shadow: 0 8px 32px var(--accent-glow);
+  box-shadow: 0 6px 24px var(--accent-glow);
 }
 
 .cm-footer {
@@ -2004,5 +2031,6 @@ body {
 
   .cm-number { font-size: 120px; }
   .cm-status { font-size: 32px; }
-  .cm-action { height: 180px; font-size: 48px; }
+  .cm-action--miss { height: 88px; font-size: 32px; }
+  .cm-action--hit  { height: 140px; font-size: 44px; }
 }
